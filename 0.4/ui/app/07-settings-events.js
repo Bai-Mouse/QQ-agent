@@ -948,6 +948,12 @@ function bindSettingsEvents(c) {
     }
   });
 
+  // ── 协议端控制台入口（SnowLuma WebUI，带 X-Frame-Options: DENY，只能外部浏览器打开）──
+  const openSnowlumaBtn = $('#open-snowluma-btn');
+  if (openSnowlumaBtn) openSnowlumaBtn.addEventListener('click', () => {
+    window.open('http://127.0.0.1:5099/', '_blank');
+  });
+
   // ── 备份与恢复 ──
   const exportBackupBtn = $('#export-backup-btn');
   if (exportBackupBtn) exportBackupBtn.addEventListener('click', async () => {

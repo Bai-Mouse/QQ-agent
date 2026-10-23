@@ -1026,6 +1026,10 @@ function renderOnebotSection(c) {
   return `
     <h3 id="settings-onebot">OneBot</h3>
     <div class="hint" style="margin-bottom:10px">请自行安装并运行协议端，在此填写 OneBot v11 的正向 WebSocket 与 HTTP API 地址。</div>
+    <div class="field" style="margin-bottom:10px">
+      <button class="btn btn-small" id="open-snowluma-btn">打开协议端控制台（SnowLuma）</button>
+      <span class="hint" style="margin-left:10px">用于启动 QQ、扫码登录与查看协议端日志；默认地址 <code>http://127.0.0.1:5099</code></span>
+    </div>
     <div class="field-row">
       <div class="field"><label>WebSocket 地址（收消息）</label><input type="text" id="cfg-wsurl" value="${esc(c.onebot.wsUrl)}" /></div>
       <div class="field"><label>HTTP 地址（发消息）</label><input type="text" id="cfg-httpurl" value="${esc(c.onebot.httpUrl)}" /></div>
