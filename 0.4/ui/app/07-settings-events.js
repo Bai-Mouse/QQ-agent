@@ -948,6 +948,70 @@ function bindSettingsEvents(c) {
     }
   });
 
+  // ── 备份与恢复 ──
+  const exportBackupBtn = $('#export-backup-btn');
+  if (exportBackupBtn) exportBackupBtn.addEventListener('click', async () => {
+    const hint = $('#backup-hint');
+    exportBackupBtn.disabled = true;
+    if (hint) hint.textContent = '正在打包…';
+    try {
+      const res = await fetch('/api/backup/export', {
+        headers: { 'x-console-token': CONSOLE_MARKER }
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || `HTTP ${res.status}`);
+      }
+      const blob = await res.blob();
+      const disp = res.headers.get('content-disposition') || '';
+      const m = /filename="([^"]+)"/.exec(disp);
+      const name = m ? m[1] : 'qq-agent-backup.json.gz';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      if (hint) hint.textContent = `✅ 已导出（${(blob.size / 1048576).toFixed(1)} MB）`;
+    } catch (e) {
+      if (hint) hint.textContent = `导出失败：${e.message}`;
+    }
+    exportBackupBtn.disabled = false;
+  });
+
+  const importBackupBtn = $('#import-backup-btn');
+  const importBackupFile = $('#import-backup-file');
+  if (importBackupBtn && importBackupFile) {
+    importBackupBtn.addEventListener('click', () => importBackupFile.click());
+    importBackupFile.addEventListener('change', async () => {
+      const file = importBackupFile.files && importBackupFile.files[0];
+      importBackupFile.value = '';
+      if (!file) return;
+      const hint = $('#backup-hint');
+      if (!(await uiConfirm(`确定导入「${file.name}」吗？\n\n当前数据会先被自动备份，再用这个文件整体覆盖。`))) return;
+      importBackupBtn.disabled = true;
+      if (hint) hint.textContent = '正在恢复…';
+      try {
+        const res = await fetch('/api/backup/import', {
+          method: 'POST',
+          headers: { 'content-type': 'application/octet-stream', 'x-console-token': CONSOLE_MARKER },
+          body: file
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok || !d.ok) throw new Error(d.error || `HTTP ${res.status}`);
+        if (hint) hint.textContent = '✅ 已恢复，请重启应用';
+        setTimeout(() => {
+          alert(`已恢复 ${d.restored} 个文件。\n\n请关闭并重新启动 QQ Agent。\n当前数据已备份到：\n${d.backupDir}`);
+        }, 300);
+      } catch (e) {
+        if (hint) hint.textContent = `导入失败：${e.message}`;
+      }
+      importBackupBtn.disabled = false;
+    });
+  }
+
   const resetDataBtn = $('#reset-data-btn');
   if (resetDataBtn) resetDataBtn.addEventListener('click', async () => {
     const hint = $('#reset-data-hint');

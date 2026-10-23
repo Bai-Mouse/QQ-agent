@@ -1000,6 +1000,15 @@ function renderDesktopSection(c) {
       </div>
       <div class="hint">所有用户数据（配置、聊天记录、记忆、表情包）都存在这个目录里。删除后重启应用即为初始形态。</div>
     </div>
+    <div class="field"><label>备份与恢复</label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-small" id="export-backup-btn">导出备份</button>
+        <button class="btn btn-small" id="import-backup-btn">导入备份</button>
+        <input type="file" id="import-backup-file" accept=".gz,.json,application/gzip,application/json" style="display:none" />
+        <span class="hint" id="backup-hint" style="margin:0"></span>
+      </div>
+      <div class="hint" style="margin-top:6px">导出会把配置、聊天存档、记忆、表情包打包成一个 .json.gz 文件；导入时会先自动备份当前数据，再整体恢复。导入后需要重启应用。</div>
+    </div>
     <div class="field">
       <button class="btn btn-danger" id="reset-data-btn">重置为初始形态</button>
       <span class="hint" id="reset-data-hint" style="margin-left:10px"></span>

@@ -57,6 +57,30 @@ export function createRoutes(deps) {
   const bodyOf = (req) => readBody(req).catch((e) => { if (e?.expose) throw e; return {}; });
 
   /**
+   * 读原始请求体（备份导入用）。
+   * 不能走 readBody：它按 JSON 解析、默认上限 2MB（硬上限 16MB），
+   * 而备份包是二进制、可能几十 MB。这里按字节流收。
+   */
+  const MAX_RAW_BODY_BYTES = 300 * 1024 * 1024;
+  function readRawBody(req, maxBytes = MAX_RAW_BODY_BYTES) {
+    return new Promise((resolve, reject) => {
+      const chunks = [];
+      let size = 0;
+      let tooLarge = false;
+      req.on('data', (chunk) => {
+        size += chunk.length;
+        if (size > maxBytes) { tooLarge = true; req.destroy(); return; }
+        if (!tooLarge) chunks.push(chunk);
+      });
+      req.on('end', () => {
+        if (tooLarge) reject(new Error(`备份文件过大（上限 ${Math.round(maxBytes / 1024 / 1024)}MB）`));
+        else resolve(Buffer.concat(chunks));
+      });
+      req.on('error', reject);
+    });
+  }
+
+  /**
    * Skill 可用性判断的运行期上下文。
    * 必须和 orchestrator 用同一份输入，否则会出现
    * "设置页说可用、运行时空工具列表"的口径分裂。
@@ -161,6 +185,44 @@ export function createRoutes(deps) {
           return json(res, 200, { ok: true, backupDir, message: `已重置为初始形态（原数据已备份到 ${backupDir}），请重启应用` });
         } catch (error) {
           return json(res, 500, { ok: false, error: String(error?.message ?? error) });
+        }
+      }
+    },
+
+    // ── 数据备份 / 恢复 ──────────────────────────────────────────────
+    {
+      method: 'GET', pattern: '/api/backup/export',
+      handler: async ({ res, json }) => {
+        try {
+          const { buildBackup } = await import('./backup.js');
+          const r = buildBackup(DATA_DIR, localVersion());
+          const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+          res.writeHead(200, {
+            'content-type': 'application/gzip',
+            'content-disposition': `attachment; filename="qq-agent-backup-${stamp}.json.gz"`,
+            'content-length': String(r.buffer.length),
+            'cache-control': 'no-store'
+          });
+          return res.end(r.buffer);
+        } catch (error) {
+          return json(res, 500, { ok: false, error: String(error?.message ?? error) });
+        }
+      }
+    },
+    {
+      method: 'POST', pattern: '/api/backup/import',
+      handler: async ({ req, res, json }) => {
+        try {
+          const buf = await readRawBody(req);
+          const { restoreBackup } = await import('./backup.js');
+          const r = restoreBackup(buf, DATA_DIR);
+          return json(res, 200, {
+            ok: true,
+            ...r,
+            message: '已恢复，请关闭并重新启动应用使配置生效'
+          });
+        } catch (error) {
+          return json(res, 400, { ok: false, error: String(error?.message ?? error) });
         }
       }
     },
